@@ -22,7 +22,47 @@ Trait Database
         return $this->conn->ping();
     }
 
-    public function query($query, $data = [])
+    private function getParamType($value)
+    {
+        if (is_int($value)) {
+            return 'i';
+        } elseif (is_float($value)) {
+            return 'd';
+        } else {
+            return 's';
+        }
+    }
+
+    public function query($query, $params = [])
+    {
+        $stm = $this->conn->prepare($query);
+
+        if ($stm === false) {
+            throw new Exception("Error is preparing query: " . $this->conn->error);
+        }
+
+        if (!empty($params)) {
+            $types = '';
+            foreach ($params as $param) {
+                $types .= $this->getParamType($param);
+            }
+
+            $stm->bind_param($types, ...$params);
+        }
+
+        $check = $stm->execute();
+
+        if ($check) {
+            $result = $stm->get_result();
+
+            if ($result->num_rows > 0) {
+                return $result->fetch_all(MYSQLI_ASSOC);
+            }
+        }
+        return false;
+    }
+
+    public function get_row($query, $data = [])
     {
         $stm = $this->conn->prepare($query);
 
